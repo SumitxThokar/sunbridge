@@ -7,7 +7,7 @@
 # 5. Gap Analysis: outs: gap analysis
 # 6. Generate Report: outs: draft_report
 
-from typing import TypedDict, Optional, List
+from typing import TypedDict, List
 
 class SunBridgeState(TypedDict):
     
@@ -15,18 +15,18 @@ class SunBridgeState(TypedDict):
     pdf2_path: str
     nepqa_path: str
     
-    pdf1_text: Optional[str]
-    pdf2_text: Optional[str]
-    nepqa_text: Optional[str]
+    pdf1_text: str | None
+    pdf2_text: str | None
+    nepqa_text: str | None
     
-    pdf1_data: Optional[dict]
-    pdf2_data: Optional[dict]
+    pdf1_data: dict| None
+    pdf2_data: dict| None
     
-    reconciliation: Optional[dict]
+    reconciliation: dict| None
     
-    gap_analysis: Optional[dict]
+    gap_analysis: dict| None
     
-    draft_report: Optional[str]
+    draft_report: dict| None
     
     errors: List[str]
     steps_completed: List[str]
