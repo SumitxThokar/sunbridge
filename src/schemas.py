@@ -114,3 +114,93 @@ class ExtractionResult(BaseModel):
         default_factory=dict,
         description="Document-level data not tied to any specific product",
     )
+    
+
+from typing import Literal
+
+class FieldComparison(BaseModel):
+    field: str
+    category: str  # "electrical", "mechanical", "environmental", "protection", "certification"
+    pdf1_value: str | None = None
+    pdf2_value: str | None = None
+    match: bool
+    severity: Literal["info", "warning", "critical"] = "info"
+    note: str | None = None
+
+
+class ProductMatch(BaseModel):
+    pdf1_model: str | None = None
+    pdf2_model: str | None = None
+    is_same_product: bool
+    confidence: Literal["high", "medium", "low"]
+    reasoning: str
+
+
+class ReconciliationResult(BaseModel):
+    product_matches: list[ProductMatch] = Field(
+        description=(
+            "Pairings between PDF1 and PDF2 products. "
+            "If the documents cover entirely different products, include one entry "
+            "with is_same_product=false explaining why."
+        )
+    )
+    consistent: list[FieldComparison] = Field(
+        default_factory=list,
+        description="Fields where matched products agree across both documents",
+    )
+    inconsistent: list[FieldComparison] = Field(
+        default_factory=list,
+        description="Fields where matched products disagree — include severity",
+    )
+    pdf1_only_fields: list[str] = Field(
+        default_factory=list,
+        description="Important fields present in PDF1 but absent in PDF2",
+    )
+    pdf2_only_fields: list[str] = Field(
+        default_factory=list,
+        description="Important fields present in PDF2 but absent in PDF1",
+    )
+    overall_assessment: Literal[
+        "consistent",        # documents agree, no issues
+        "minor_issues",      # small discrepancies, not blocking
+        "major_issues",      # significant discrepancies needing resolution
+        "incompatible",      # documents directly contradict each other
+        "different_products" # PDFs describe unrelated products
+    ]
+    assessment_reasoning: str
+    summary: str
+    
+from typing import Literal  # add to existing import if not present
+
+class CoverageItem(BaseModel):
+    requirement: str
+    field: str | None = None
+    value_found: str | None = None
+    source: str | None = None        # "pdf1", "pdf2", "both"
+    note: str | None = None
+
+class MissingItem(BaseModel):
+    requirement: str
+    category: str                    # "electrical", "certification", "documentation", etc.
+    details: str
+    severity: Literal["critical", "warning", "info"] = "warning"
+
+class UnclearItem(BaseModel):
+    requirement: str
+    reason: str
+    found_value: str | None = None
+
+class GridCompatibility(BaseModel):
+    status: Literal["confirmed", "likely", "unconfirmed", "incompatible"]
+    voltage: str | None = None
+    frequency: str | None = None
+    note: str | None = None
+
+class GapAnalysisResult(BaseModel):
+    covered: list[CoverageItem] = Field(default_factory=list)
+    missing: list[MissingItem] = Field(default_factory=list)
+    unclear: list[UnclearItem] = Field(default_factory=list)
+    nepal_grid_compatibility: GridCompatibility
+    overall_readiness: Literal["ready", "conditionally_ready", "not_ready", "unknown"]
+    readiness_note: str
+    recommendations: list[str] = Field(default_factory=list)

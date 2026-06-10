@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SunBridge — Nepal Solar PV Compliance</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f6fa;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+header {
+  background: #16213e;
+  color: white;
+  padding: 1.5rem 2rem;
+  border-bottom: 3px solid #f59e0b;
+}
+header h1 { font-size: 1.8rem; font-weight: 700; }
+header p  { color: #94a3b8; margin-top: .3rem; font-size: .95rem; }
+
+main { max-width: 920px; margin: 2rem auto; padding: 0 1.25rem 4rem; }
+
+/* ── Upload form ──────────────────────────────────────────────────────────── */
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.doc-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.1rem;
+  transition: border-color .2s;
+}
+.doc-card:hover { border-color: #93c5fd; }
+.doc-card h3 {
+  font-size: .78rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: .4rem;
+}
+.doc-default {
+  font-size: .8rem;
+  color: #94a3b8;
+  margin-bottom: .75rem;
+  word-break: break-all;
+  min-height: 2.2rem;
+}
+.doc-card input[type=file] { font-size: .82rem; width: 100%; cursor: pointer; }
+
+.run-btn {
+  display: block;
+  width: 100%;
+  padding: .9rem;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: .02em;
+  transition: background .2s;
+}
+.run-btn:hover:not(:disabled) { background: #1d4ed8; }
+.run-btn:disabled { background: #93c5fd; cursor: not-allowed; }
+
+/* ── Loading ──────────────────────────────────────────────────────────────── */
+#loading {
+  display: none;
+  text-align: center;
+  padding: 3.5rem 1rem;
+}
+.spinner {
+  display: inline-block;
+  width: 2.5rem; height: 2.5rem;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading p { margin-top: 1rem; color: #64748b; line-height: 1.6; }
+
+/* ── Results ──────────────────────────────────────────────────────────────── */
+#results { display: none; margin-top: 2rem; }
+
+.card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.card h2 {
+  font-size: .95rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #0f172a;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: .22rem .65rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.bg-green  { background: #dcfce7; color: #15803d; }
+.bg-yellow { background: #fef9c3; color: #a16207; }
+.bg-red    { background: #fee2e2; color: #b91c1c; }
+.bg-blue   { background: #dbeafe; color: #1d4ed8; }
+.bg-gray   { background: #f1f5f9; color: #475569; }
+
+/* Summary row */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+.stat-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+.stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+.stat-label { font-size: .75rem; color: #94a3b8; margin-top: .3rem; }
+
+/* Steps */
+.steps-row { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.step-chip {
+  background: #dcfce7;
+  color: #15803d;
+  padding: .2rem .65rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+th {
+  text-align: left;
+  padding: .5rem .75rem;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+  color: #475569;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 700;
+}
+td { padding: .55rem .75rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+
+/* Error box */
+.error-box {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  font-size: .875rem;
+}
+.error-box ul { margin-left: 1.25rem; margin-top: .4rem; }
+.error-box li { color: #b91c1c; margin: .2rem 0; }
+
+/* Section label */
+.section-label {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin: .85rem 0 .35rem;
+}
+
+/* Report */
+#report-content {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  font-size: .875rem;
+  line-height: 1.75;
+  max-height: 620px;
+  overflow-y: auto;
+}
+#report-content h1 { font-size: 1.2rem;  font-weight: 800; margin: 1.25rem 0 .5rem; }
+#report-content h2 { font-size: 1.05rem; font-weight: 700; margin: 1rem 0 .4rem; color: #1e40af; }
+#report-content h3 { font-size: .92rem;  font-weight: 700; margin: .75rem 0 .3rem; }
+#report-content p  { margin: .4rem 0; }
+#report-content ul, #report-content ol { margin-left: 1.5rem; }
+#report-content li { margin: .25rem 0; }
+#report-content strong { color: #0f172a; }
+#report-content table th,
+#report-content table td { border: 1px solid #e2e8f0; }
+
+/* Misc */
+.muted { color: #94a3b8; font-size: .875rem; }
+.gap   { height: .75rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌞 SunBridge</h1>
+  <p>Nepal Solar Inverter Import Compliance Analyzer — NEPQA 2025</p>
+</header>
+
+<main>
+
+  <!-- ── Upload form ─────────────────────────────────────────────────── -->
+  <div id="upload-section" style="margin-bottom:1.5rem; margin-top:1.5rem">
+    <div class="doc-grid">
+
+      <div class="doc-card">
+        <h3>📜 Product Certificate</h3>
+        <div class="doc-default" id="name-pdf1">{{ defaults.pdf1 }}</div>
+        <input type="file" id="file-pdf1" accept=".pdf">
+      </div>
+
+      <div class="doc-card">
+        <h3>🔬 Test Report</h3>
+        <div class="doc-default" id="name-pdf2">{{ defaults.pdf2 }}</div>
+        <input type="file" id="file-pdf2" accept=".pdf">
+      </div>
+
+      <div class="doc-card">
+        <h3>📋 Compliance Standard</h3>
+        <div class="doc-default" id="name-nepqa">{{ defaults.nepqa }}</div>
+        <input type="file" id="file-nepqa" accept=".pdf">
+      </div>
+
+    </div>
+    <button class="run-btn" id="run-btn" onclick="runAnalysis()">
+      ▶ Run Compliance Analysis
+    </button>
+  </div>
+
+  <!-- ── Loading ────────────────────────────────────────────────────── -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Running analysis pipeline…<br>
+       <small>Loading → Extract → Reconcile → Gap Analysis → Report<br>
+       This usually takes 1–2 minutes.</small>
+    </p>
+  </div>
+
+  <!-- ── Results ────────────────────────────────────────────────────── -->
+  <div id="results"></div>
+
+</main>
+
+<script>
+// ── Badge helper ─────────────────────────────────────────────────────────────
+function badge(text, fallback) {
+  if (!text) return fallback ? `<span class="badge bg-gray">${fallback}</span>` : '—';
+  const t = text.toUpperCase();
+  let cls = 'bg-gray';
+  if (t === 'READY' || t === 'MATCH' || t === 'COMPLIANT' || t === 'PASS' || t === 'COMPATIBLE' || t === 'HIGH')
+    cls = 'bg-green';
+  else if (t.includes('CONDITIONAL') || t.includes('PARTIAL') || t === 'MEDIUM' || t === 'WARNING')
+    cls = 'bg-yellow';
+  else if (t.includes('NOT_READY') || t.includes('NOT READY') || t === 'MISMATCH' || t === 'FAIL'
+           || t === 'INCOMPATIBLE' || t === 'LOW' || t === 'CRITICAL')
+    cls = 'bg-red';
+  else if (t === 'INFO')
+    cls = 'bg-blue';
+  return `<span class="badge ${cls}">${text}</span>`;
+}
+
+// ── File input label update ──────────────────────────────────────────────────
+['pdf1', 'pdf2', 'nepqa'].forEach(key => {
+  document.getElementById(`file-${key}`).addEventListener('change', function () {
+    if (this.files[0])
+      document.getElementById(`name-${key}`).textContent = '📄 ' + this.files[0].name;
+  });
+});
+
+// ── Run pipeline ─────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('results').style.display  = 'none';
+  document.getElementById('results').innerHTML = '';
+
+  const form = new FormData();
+  const f1 = document.getElementById('file-pdf1').files[0];
+  const f2 = document.getElementById('file-pdf2').files[0];
+  const fn = document.getElementById('file-nepqa').files[0];
+  if (f1) form.append('pdf1',  f1);
+  if (f2) form.append('pdf2',  f2);
+  if (fn) form.append('nepqa', fn);
+
+  try {
+    const resp = await fetch('/run', { method: 'POST', body: form });
+    const data = await resp.json();
+    document.getElementById('loading').style.display = 'none';
+    renderResults(data);
+  } catch (err) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('results').innerHTML =
+      `<div class="error-box"><b>Request failed:</b> ${err}</div>`;
+    document.getElementById('results').style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Run Compliance Analysis';
+  }
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function renderResults(data) {
+  const el = document.getElementById('results');
+  el.style.display = 'block';
+
+  if (data.status === 'error') {
+    el.innerHTML = `<div class="error-box"><b>Pipeline error:</b> ${data.message}</div>`;
+    return;
+  }
+
+  const r    = data.result || {};
+  const gap  = r.gap_analysis    || {};
+  const recon = r.reconciliation || {};
+  let html = '';
+
+  // ── Errors ────────────────────────────────────────────────────────────
+  if (r.errors?.length) {
+    html += `<div class="error-box"><b>⚠ ${r.errors.length} error(s):</b><ul>`;
+    r.errors.forEach(e => { html += `<li>${e}</li>`; });
+    html += `</ul></div>`;
+  }
+
+  // ── Steps completed ───────────────────────────────────────────────────
+  const steps = r.steps_completed || [];
+  if (steps.length) {
+    html += `<div class="steps-row">`;
+    steps.forEach(s => { html += `<span class="step-chip">✓ ${s}</span>`; });
+    html += `</div>`;
+  }
+
+  // ── Summary counters ──────────────────────────────────────────────────
+  const p1cnt  = (r.pdf1_data?.products || []).length;
+  const p2cnt  = (r.pdf2_data?.products || []).length;
+  const nCov   = (gap.covered  || []).length;
+  const nMiss  = (gap.missing  || []).length;
+  const readiness = gap.overall_readiness || null;
+
+  html += `<div class="summary-row">
+    <div class="stat-card">
+      <div class="stat-value">${p1cnt}</div>
+      <div class="stat-label">Products<br>Certificate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${p2cnt}</div>
+      <div class="stat-label">Products<br>Test Report</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:#15803d">${nCov}</div>
+      <div class="stat-label">Requirements<br>Met</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:#b91c1c">${nMiss}</div>
+      <div class="stat-label">Requirements<br>Missing</div>
+    </div>
+  </div>`;
+
+  // ── Products ──────────────────────────────────────────────────────────
+  html += `<div class="card"><h2>📦 Products Found</h2>`;
+  [['pdf1_data', '📜 Document 1 — Certificate'], ['pdf2_data', '🔬 Document 2 — Test Report']]
+    .forEach(([key, label], i) => {
+      const d = r[key];
+      html += `<p class="section-label">${label}</p>`;
+      const products = d?.products || [];
+      if (!products.length) {
+        html += `<p class="muted">No products extracted.</p>`;
+      } else {
+        html += `<table>
+          <tr><th>#</th><th>Model</th><th>Manufacturer</th><th>Power</th><th>Type</th></tr>`;
+        products.forEach((p, idx) => {
+          const pi = p.product_info || {};
+          html += `<tr>
+            <td>${idx + 1}</td>
+            <td><b>${pi.model_number || '—'}</b></td>
+            <td>${pi.manufacturer || '—'}</td>
+            <td>${pi.rated_power_kw || '—'}</td>
+            <td>${pi.product_type || '—'}</td>
+          </tr>`;
+        });
+        html += `</table>`;
+      }
+      if (i === 0) html += `<div class="gap"></div>`;
+    });
+  html += `</div>`;
+
+  // ── Reconciliation ────────────────────────────────────────────────────
+  if (Object.keys(recon).length) {
+    html += `<div class="card">
+      <h2>🔄 Reconciliation ${badge(recon.overall_assessment)}</h2>`;
+
+    if (recon.summary)
+      html += `<p style="font-size:.875rem;color:#475569;margin-bottom:.75rem">${recon.summary}</p>`;
+
+    const incons = recon.inconsistent || [];
+    if (incons.length) {
+      html += `<p class="section-label">Inconsistencies (${incons.length})</p>
+        <table>
+          <tr><th>Severity</th><th>Category</th><th>Field</th><th>Document 1</th><th>Document 2</th></tr>`;
+      incons.forEach(item => {
+        html += `<tr>
+          <td>${badge(item.severity)}</td>
+          <td>${item.category || '—'}</td>
+          <td>${item.field || '—'}</td>
+          <td>${item.pdf1_value ?? '—'}</td>
+          <td>${item.pdf2_value ?? '—'}</td>
+        </tr>`;
+      });
+      html += `</table>`;
+    } else {
+      html += `<p style="color:#15803d;font-size:.875rem">✓ No inconsistencies found.</p>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Gap Analysis ──────────────────────────────────────────────────────
+  if (Object.keys(gap).length) {
+    const grid = gap.nepal_grid_compatibility || {};
+    html += `<div class="card">
+      <h2>🇳🇵 NEPQA 2025 Gap Analysis ${badge(readiness)}</h2>`;
+
+    if (gap.readiness_note)
+      html += `<p style="font-size:.875rem;color:#475569;margin-bottom:.75rem">${gap.readiness_note}</p>`;
+
+    if (grid.status) {
+      html += `<p style="font-size:.875rem;margin-bottom:.75rem">
+        Grid compatibility: ${badge(grid.status)}
+        ${grid.voltage   ? `<span class="muted" style="margin-left:.5rem">${grid.voltage}</span>`   : ''}
+        ${grid.frequency ? `<span class="muted" style="margin-left:.5rem">${grid.frequency}</span>` : ''}
+      </p>`;
+    }
+
+    const missing = gap.missing || [];
+    if (missing.length) {
+      html += `<p class="section-label">Missing Requirements (${missing.length})</p>
+        <table>
+          <tr><th>Severity</th><th>Category</th><th>Requirement</th><th>Details</th></tr>`;
+      missing.forEach(m => {
+        html += `<tr>
+          <td>${badge(m.severity)}</td>
+          <td>${m.category || '—'}</td>
+          <td>${m.requirement || '—'}</td>
+          <td class="muted">${m.details || ''}</td>
+        </tr>`;
+      });
+      html += `</table>`;
+    }
+
+    const recs = gap.recommendations || [];
+    if (recs.length) {
+      html += `<p class="section-label">Recommendations</p><ul style="font-size:.875rem;margin-left:1.5rem">`;
+      recs.forEach(rec => { html += `<li style="margin:.3rem 0">${rec}</li>`; });
+      html += `</ul>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Draft Report ──────────────────────────────────────────────────────
+  if (r.draft_report) {
+    html += `<div class="card">
+      <h2>📄 Compliance Report</h2>
+      <div id="report-content"></div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+
+  // Render markdown after DOM is ready
+  if (r.draft_report) {
+    document.getElementById('report-content').innerHTML =
+      marked.parse(r.draft_report);
+  }
+}
+</script>
+</body>
+</html>
